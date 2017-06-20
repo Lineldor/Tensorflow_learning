@@ -134,12 +134,8 @@ class PTBModel(object):
     # outputs, state = tf.nn.rnn(cell, inputs, initial_state=self._initial_state)
     outputs = []
     state = self._initial_state
-    with tf.variable_scope("RNN"):
-      for time_step in range(num_steps):
-        if time_step > 0: tf.get_variable_scope().reuse_variables()
-        (cell_output, state) = tf.nn.rnn(cell, inputs, initial_state=self._initial_state)
-        outputs.append(cell_output)
-
+    outputs, state = tf.nn.rnn(cell, inputs, initial_state=self._initial_state)
+   
     output = tf.reshape(tf.concat(1, outputs), [-1, size])
     softmax_w = tf.get_variable(
         "softmax_w", [size, vocab_size], dtype=data_type())
