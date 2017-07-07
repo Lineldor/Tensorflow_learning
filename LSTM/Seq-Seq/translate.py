@@ -54,8 +54,8 @@ tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
 tf.app.flags.DEFINE_integer("from_vocab_size", 40000, "English vocabulary size.")
 tf.app.flags.DEFINE_integer("to_vocab_size", 40000, "French vocabulary size.")
-tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
-tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.")
+tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory") #data_dir?
+tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.") #train_dir=where the model is saved?
 tf.app.flags.DEFINE_string("from_train_data", None, "Training data.")
 tf.app.flags.DEFINE_string("to_train_data", None, "Training data.")
 tf.app.flags.DEFINE_string("from_dev_data", None, "Training data.")
@@ -77,9 +77,9 @@ FLAGS = tf.app.flags.FLAGS
 # See seq2seq_model.Seq2SeqModel for details of how they work.
 _buckets = [(5, 10), (10, 15), (20, 25), (40, 50)]
 
-
+'''data is clustered in bucket'''
 def read_data(source_path, target_path, max_size=None):
-  """Read data from source and target files and put into buckets.
+  """Read data from source and target files and put into buckets. data is clustered in bucket
   Args:
     source_path: path to the files with token-ids for the source language.
     target_path: path to the file with token-ids for the target language;
@@ -93,7 +93,7 @@ def read_data(source_path, target_path, max_size=None):
       into the n-th bucket, i.e., such that len(source) < _buckets[n][0] and
       len(target) < _buckets[n][1]; source and target are lists of token-ids.
   """
-  data_set = [[] for _ in _buckets]
+  data_set = [[] for _ in _buckets] #data_set=[[], [], ...,[]] len(_buckets) every [] is a [[],[],..]
   with tf.gfile.GFile(source_path, mode="r") as source_file:
     with tf.gfile.GFile(target_path, mode="r") as target_file:
       source, target = source_file.readline(), target_file.readline()
@@ -113,7 +113,7 @@ def read_data(source_path, target_path, max_size=None):
         source, target = source_file.readline(), target_file.readline()
   return data_set
 
-
+''' offer parameters to seq2seq_model'''
 def create_model(session, forward_only):
   """Create translation model and initialize or load parameters in session."""
   dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
@@ -138,14 +138,14 @@ def create_model(session, forward_only):
     session.run(tf.global_variables_initializer())
   return model
 
-
+'''train model'''
 def train():
   """Train a en->fr translation model using WMT data."""
   from_train = None
   to_train = None
   from_dev = None
   to_dev = None
-  if FLAGS.from_train_data and FLAGS.to_train_data:
+  if FLAGS.from_train_data and FLAGS.to_train_data: #using given rather than auto dir  the dir=finename
     from_train_data = FLAGS.from_train_data
     to_train_data = FLAGS.to_train_data
     from_dev_data = from_train_data
@@ -163,9 +163,11 @@ def train():
         FLAGS.to_vocab_size)
   else:
       # Prepare WMT data.
-      print("Preparing WMT data in %s" % FLAGS.data_dir)
+      print("Preparing WMT data in %s" % FLAGS.data_dir) #using auto dir
       from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_wmt_data(
           FLAGS.data_dir, FLAGS.from_vocab_size, FLAGS.to_vocab_size)
+    """present data is represented by number for instance: 0 1 2 3 4 
+                                                           2 3 4 5 6"""
 
   with tf.Session() as sess:
     # Create model.
@@ -175,9 +177,9 @@ def train():
     # Read data into buckets and compute their sizes.
     print ("Reading development and training data (limit: %d)."
            % FLAGS.max_train_data_size)
-    dev_set = read_data(from_dev, to_dev)
+    dev_set = read_data(from_dev, to_dev) # read_data :data_set=[[], [], ...,[]] len(_buckets) every [] is a [[source_id,target_id],[],..]
     train_set = read_data(from_train, to_train, FLAGS.max_train_data_size)
-    train_bucket_sizes = [len(train_set[b]) for b in xrange(len(_buckets))]
+    train_bucket_sizes = [len(train_set[b]) for b in xrange(len(_buckets))] #how many training samples in _buckets(b)
     train_total_size = float(sum(train_bucket_sizes))
 
     # A bucket scale is a list of increasing numbers from 0 to 1 that we'll use
@@ -247,8 +249,8 @@ def decode():
     en_vocab_path = os.path.join(FLAGS.data_dir,
                                  "vocab%d.from" % FLAGS.from_vocab_size)
     fr_vocab_path = os.path.join(FLAGS.data_dir,
-                                 "vocab%d.to" % FLAGS.to_vocab_size)
-    en_vocab, _ = data_utils.initialize_vocabulary(en_vocab_path)
+                                 "vocab%d.to" % FLAGS.to_vocab_size)  #vocabulary_table
+    en_vocab, _ = data_utils.initialize_vocabulary(en_vocab_path) #return {"dog": 0, "cat": 1} and ["dog", "cat"]
     _, rev_fr_vocab = data_utils.initialize_vocabulary(fr_vocab_path)
 
     # Decode from standard input.

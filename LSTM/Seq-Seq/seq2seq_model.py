@@ -1,4 +1,4 @@
-#copyright 2015 The TensorFlow Authors. All Rights Reserved.
+# copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ class Seq2SeqModel(object):
     # If we use sampled softmax, we need an output projection.
     output_projection = None
     softmax_loss_function = None
+	''' compute the sampled loss and assign it to softmax_loss_function'''
     # Sampled softmax only makes sense if we sample less than vocabulary size.
     if num_samples > 0 and num_samples < self.target_vocab_size:
       w_t = tf.get_variable("proj_w", [self.target_vocab_size, size], dtype=dtype)
@@ -115,7 +116,9 @@ class Seq2SeqModel(object):
                 num_classes=self.target_vocab_size),
             dtype)
       softmax_loss_function = sampled_loss
-
+    
+	
+	'''========================='''
     # Create the internal multi-layer cell for our RNN.
     def single_cell():
       return tf.contrib.rnn.GRUCell(size)
@@ -125,7 +128,9 @@ class Seq2SeqModel(object):
     cell = single_cell()
     if num_layers > 1:
       cell = tf.contrib.rnn.MultiRNNCell([single_cell() for _ in range(num_layers)])
-
+  
+  
+    '''============================='''
     # The seq2seq function: we use embedding for the input and attention.
     def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
       return tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(
@@ -155,7 +160,7 @@ class Seq2SeqModel(object):
     # Our targets are decoder inputs shifted by one.
     targets = [self.decoder_inputs[i + 1]
                for i in xrange(len(self.decoder_inputs) - 1)]
-
+    '''train model and update params'''
     # Training outputs and losses.
     if forward_only:
       self.outputs, self.losses = tf.contrib.legacy_seq2seq.model_with_buckets(
@@ -192,6 +197,7 @@ class Seq2SeqModel(object):
 
     self.saver = tf.train.Saver(tf.global_variables())
 
+	''' a step of the model'''
   def step(self, session, encoder_inputs, decoder_inputs, target_weights,
            bucket_id, forward_only):
     """Run a step of the model feeding the given inputs.
@@ -229,13 +235,14 @@ class Seq2SeqModel(object):
       input_feed[self.decoder_inputs[l].name] = decoder_inputs[l]
       input_feed[self.target_weights[l].name] = target_weights[l]
 
-    # Since our targets are decoder inputs shifted by one, we need one more.
+    # decoder_size=len(decoder_input)-1  Since our targets are decoder inputs shifted by one, we need one more.
     last_target = self.decoder_inputs[decoder_size].name
-    input_feed[last_target] = np.zeros([self.batch_size], dtype=np.int32)
+    input_feed[last_target] = np.zeros([self.batch_size], dtype=np.int32)# why batch size?
 
+	'''the relationship between bucket and batch is ?'''
     # Output feed: depends on whether we do a backward step or not.
     if not forward_only:
-      output_feed = [self.updates[bucket_id],  # Update Op that does SGD.
+      output_feed = [self.updates[bucket_id],  # Update Op that does SGD. bucket_id corresponding to paras?
                      self.gradient_norms[bucket_id],  # Gradient norm.
                      self.losses[bucket_id]]  # Loss for this batch.
     else:
@@ -248,8 +255,9 @@ class Seq2SeqModel(object):
       return outputs[1], outputs[2], None  # Gradient norm, loss, no outputs.
     else:
       return None, outputs[0], outputs[1:]  # No gradient norm, loss, outputs.
+	  ''' the form of output? '''
 
-  def get_batch(self, data, bucket_id):
+  def get_batch(self, data, bucket_id): #where to use this function?
     """Get a random batch of data from the specified bucket, prepare for step.
     To feed data in step(..) it must be a list of batch-major vectors, while
     data here contains single length-major cases. So the main logic of this
@@ -257,9 +265,16 @@ class Seq2SeqModel(object):
     Args:
       data: a tuple of size len(self.buckets) in which each element contains
         lists of pairs of input and output data that we use to create a batch.
+		data: [1 2   3 4], [1 2   4]
+		      [2 3 4   3 4 6], [2 3 4   3 4 6]
+			  len(self.bucket) ?
       bucket_id: integer, which bucket to get the batch for.
     Returns:
       The triple (encoder_inputs, decoder_inputs, target_weights) for
+	  encoder_input: 1 2    3 4
+	                 5 6    8 9 
+					 9 2    9
+					 len(batch)
       the constructed batch that has the proper format to call step(...) later.
     """
     encoder_size, decoder_size = self.buckets[bucket_id]
@@ -268,7 +283,7 @@ class Seq2SeqModel(object):
     # Get a random batch of encoder and decoder inputs from data,
     # pad them if needed, reverse encoder inputs and add GO to decoder.
     for _ in xrange(self.batch_size):
-      encoder_input, decoder_input = random.choice(data[bucket_id])
+      encoder_input, decoder_input = random.choice(data[bucket_id]) #random choose a list containing input and output
 
       # Encoder inputs are padded and then reversed.
       encoder_pad = [data_utils.PAD_ID] * (encoder_size - len(encoder_input))
@@ -303,5 +318,5 @@ class Seq2SeqModel(object):
           target = decoder_inputs[batch_idx][length_idx + 1]
         if length_idx == decoder_size - 1 or target == data_utils.PAD_ID:
           batch_weight[batch_idx] = 0.0
-      batch_weights.append(batch_weight)
-    return batch_encoder_inputs, batch_decoder_inputs, batch_weights
+      batch_weights.append(batch_weight) #batch_weights: decoder_size* batch_size
+    return batch_encoder_inputs, batch_decoder_inputs, batch_weights 

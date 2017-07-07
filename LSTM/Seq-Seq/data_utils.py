@@ -1,4 +1,4 @@
-#copyright 2015 The TensorFlow Authors. All Rights Reserved.
+# copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,9 +48,9 @@ _DIGIT_RE = re.compile(br"\d")
 _WMT_ENFR_TRAIN_URL = "http://www.statmt.org/wmt10/training-giga-fren.tar"
 _WMT_ENFR_DEV_URL = "http://www.statmt.org/wmt15/dev-v2.tgz"
 
-
+"""download and unzip data"""
 def maybe_download(directory, filename, url):
-  """Download filename from url unless it's already in directory."""
+  """Download filename from url unless it's already in directory. --data_dir=...  directory.filename=data_saved_position"""
   if not os.path.exists(directory):
     print("Creating directory %s" % directory)
     os.mkdir(directory)
@@ -64,7 +64,7 @@ def maybe_download(directory, filename, url):
 
 
 def gunzip_file(gz_path, new_path):
-  """Unzips from gz_path into new_path."""
+  """Unzips from gz_path into new_path.  unzip the downloaded data"""
   print("Unpacking %s to %s" % (gz_path, new_path))
   with gzip.open(gz_path, "rb") as gz_file:
     with open(new_path, "wb") as new_file:
@@ -72,8 +72,9 @@ def gunzip_file(gz_path, new_path):
         new_file.write(line)
 
 
-def get_wmt_enfr_train_set(directory):
-  """Download the WMT en-fr training corpus to directory unless it's there."""
+def get_wmt_enfr_train_set(directory): 
+  """Download the WMT en-fr training corpus to directory unless it's there.
+     train_set=directory.giga-fren.release2.fixed.fr/en"""
   train_path = os.path.join(directory, "giga-fren.release2.fixed")
   if not (gfile.Exists(train_path +".fr") and gfile.Exists(train_path +".en")):
     corpus_file = maybe_download(directory, "training-giga-fren.tar",
@@ -83,7 +84,7 @@ def get_wmt_enfr_train_set(directory):
       corpus_tar.extractall(directory)
     gunzip_file(train_path + ".fr.gz", train_path + ".fr")
     gunzip_file(train_path + ".en.gz", train_path + ".en")
-  return train_path
+  return train_path #data_saved in ??
 
 
 def get_wmt_enfr_dev_set(directory):
@@ -100,9 +101,12 @@ def get_wmt_enfr_dev_set(directory):
       en_dev_file.name = dev_name + ".en"
       dev_tar.extract(fr_dev_file, directory)
       dev_tar.extract(en_dev_file, directory)
-  return dev_path
+  return dev_path #data saved in directory.newstest2013
+  
+"""=============================================="""
 
 
+""" create the data  """
 def basic_tokenizer(sentence):
   """Very basic tokenizer: split the sentence into a list of tokens."""
   words = []
@@ -144,12 +148,12 @@ def create_vocabulary(vocabulary_path, data_path, max_vocabulary_size,
             vocab[word] += 1
           else:
             vocab[word] = 1
-      vocab_list = _START_VOCAB + sorted(vocab, key=vocab.get, reverse=True)
+      vocab_list = _START_VOCAB + sorted(vocab, key=vocab.get, reverse=True) #the fisrt words of vocab_list=_START_VOCAB = [_PAD, _GO, _EOS, _UNK] the most frequent in the begin
       if len(vocab_list) > max_vocabulary_size:
         vocab_list = vocab_list[:max_vocabulary_size]
       with gfile.GFile(vocabulary_path, mode="wb") as vocab_file:
         for w in vocab_list:
-          vocab_file.write(w + b"\n")
+          vocab_file.write(w + b"\n") #one-token-per-line
 
 
 def initialize_vocabulary(vocabulary_path):
@@ -206,7 +210,8 @@ def sentence_to_token_ids(sentence, vocabulary,
 
 def data_to_token_ids(data_path, target_path, vocabulary_path,
                       tokenizer=None, normalize_digits=True):
-  """Tokenize data file and turn into token-ids using given vocabulary file.
+  """Split the data_file to sentence and then use sentence_to_token_ids.
+  Tokenize data file and turn into token-ids using given vocabulary file.
   This function loads data line-by-line from data_path, calls the above
   sentence_to_token_ids, and saves the result to target_path. See comment
   for sentence_to_token_ids on the details of token-ids format.
@@ -251,12 +256,12 @@ def prepare_wmt_data(data_dir, en_vocabulary_size, fr_vocabulary_size, tokenizer
       (6) path to the French vocabulary file.
   """
   # Get wmt data to the specified directory.
-  train_path = get_wmt_enfr_train_set(data_dir)
-  dev_path = get_wmt_enfr_dev_set(data_dir)
+  train_path = get_wmt_enfr_train_set(data_dir) #downloaded data is saved in train_path
+  dev_path = get_wmt_enfr_dev_set(data_dir)  #downloaded data is saved in dev_path
 
-  from_train_path = train_path + ".en"
+  from_train_path = train_path + ".en" #train_data
   to_train_path = train_path + ".fr"
-  from_dev_path = dev_path + ".en"
+  from_dev_path = dev_path + ".en" #dev_data
   to_dev_path = dev_path + ".fr"
   return prepare_data(data_dir, from_train_path, to_train_path, from_dev_path, to_dev_path, en_vocabulary_size,
                       fr_vocabulary_size, tokenizer)
@@ -287,21 +292,23 @@ def prepare_data(data_dir, from_train_path, to_train_path, from_dev_path, to_dev
   # Create vocabularies of the appropriate sizes.
   to_vocab_path = os.path.join(data_dir, "vocab%d.to" % to_vocabulary_size)
   from_vocab_path = os.path.join(data_dir, "vocab%d.from" % from_vocabulary_size)
-  create_vocabulary(to_vocab_path, to_train_path , to_vocabulary_size, tokenizer)
+  create_vocabulary(to_vocab_path, to_train_path , to_vocabulary_size, tokenizer) #choose the most frequent words
   create_vocabulary(from_vocab_path, from_train_path , from_vocabulary_size, tokenizer)
 
   # Create token ids for the training data.
   to_train_ids_path = to_train_path + (".ids%d" % to_vocabulary_size)
   from_train_ids_path = from_train_path + (".ids%d" % from_vocabulary_size)
-  data_to_token_ids(to_train_path, to_train_ids_path, to_vocab_path, tokenizer)
+  data_to_token_ids(to_train_path, to_train_ids_path, to_vocab_path, tokenizer) #turn the file to number
   data_to_token_ids(from_train_path, from_train_ids_path, from_vocab_path, tokenizer)
 
   # Create token ids for the development data.
   to_dev_ids_path = to_dev_path + (".ids%d" % to_vocabulary_size)
   from_dev_ids_path = from_dev_path + (".ids%d" % from_vocabulary_size)
   data_to_token_ids(to_dev_path, to_dev_ids_path, to_vocab_path, tokenizer)
-  data_to_token_ids(from_dev_path, from_dev_ids_path, from_vocab_path, tokenizer)
+  data_to_token_ids(from_dev_path, from_dev_ids_path, from_vocab_path, tokenizer) #turn the file to number
 
   return (from_train_ids_path, to_train_ids_path,
           from_dev_ids_path, to_dev_ids_path,
-          from_vocab_path, to_vocab_path)
+          from_vocab_path, to_vocab_path) #"from language" vocabulary file
+""" data is represented by number for instance: 0 1 2 3 4 
+                                                2 3 4 5 6"""
