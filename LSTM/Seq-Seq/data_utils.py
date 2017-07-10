@@ -81,10 +81,11 @@ def get_wmt_enfr_train_set(directory):
                                  _WMT_ENFR_TRAIN_URL)
     print("Extracting tar file %s" % corpus_file)
     with tarfile.open(corpus_file, "r") as corpus_tar:
-      corpus_tar.extractall(directory)
+      corpus_tar.extractall(directory) #trafile:https://docs.python.org/3/library/tarfile.html
     gunzip_file(train_path + ".fr.gz", train_path + ".fr")
     gunzip_file(train_path + ".en.gz", train_path + ".en")
-  return train_path #data_saved in ??
+  return train_path #data is saved in directory/giga-fren.release2.fixed.fr--/en train_path=directory/giga-fren.release2.fixed
+
 
 
 def get_wmt_enfr_dev_set(directory):
@@ -101,7 +102,7 @@ def get_wmt_enfr_dev_set(directory):
       en_dev_file.name = dev_name + ".en"
       dev_tar.extract(fr_dev_file, directory)
       dev_tar.extract(en_dev_file, directory)
-  return dev_path #data saved in directory.newstest2013
+  return dev_path #data saved in directory/newstest2013.en--newtest2013.fr  format:txt2en/fr one sentence per line dev_path=directory/newstest2013
   
 """=============================================="""
 
@@ -311,4 +312,5 @@ def prepare_data(data_dir, from_train_path, to_train_path, from_dev_path, to_dev
           from_dev_ids_path, to_dev_ids_path,
           from_vocab_path, to_vocab_path) #"from language" vocabulary file
 """ data is represented by number for instance: 0 1 2 3 4 
-                                                2 3 4 5 6"""
+                                                2 3 4 5 6
+                                                the source_sentence corresponds to target sentence line by line"""
